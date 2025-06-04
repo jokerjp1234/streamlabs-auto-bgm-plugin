@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto BGM Player</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="plugin-container" class="bgm-plugin">
+        <div class="header">
+            <h2>🎵 Auto BGM Player</h2>
+            <div class="version">v1.0.0</div>
+        </div>
+
+        <!-- ステータス表示 -->
+        <div class="status-panel">
+            <div class="status-item">
+                <span class="status-label">監視状態:</span>
+                <span id="monitoring-status" class="status-value">停止中</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">検出シーン:</span>
+                <span id="current-scene" class="status-value">なし</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">再生状態:</span>
+                <span id="playback-status" class="status-value">停止</span>
+            </div>
+        </div>
+
+        <!-- タブナビゲーション -->
+        <div class="tab-navigation">
+            <button class="tab-btn active" data-tab="register">登録</button>
+            <button class="tab-btn" data-tab="manage">管理</button>
+            <button class="tab-btn" data-tab="control">制御</button>
+            <button class="tab-btn" data-tab="settings">設定</button>
+        </div>
+
+        <!-- 登録タブ -->
+        <div id="register-tab" class="tab-content active">
+            <div class="section">
+                <h3>🖼️ 新しいシーンを登録</h3>
+                <div class="form-group">
+                    <label for="scene-name">シーン名:</label>
+                    <input type="text" id="scene-name" placeholder="例: ゲーム開始画面" maxlength="50">
+                </div>
+                <div class="form-group">
+                    <label for="image-upload">参照画像:</label>
+                    <input type="file" id="image-upload" accept="image/png,image/jpeg,image/webp">
+                    <div class="file-info">対応形式: PNG, JPEG, WebP (最大5MB)</div>
+                </div>
+                <div class="form-group">
+                    <label for="audio-upload">BGM音声:</label>
+                    <input type="file" id="audio-upload" accept="audio/mp3,audio/wav,audio/ogg">
+                    <div class="file-info">対応形式: MP3, WAV, OGG (最大10MB)</div>
+                </div>
+                <div class="form-group">
+                    <label for="scene-sensitivity">このシーンの認識感度:</label>
+                    <input type="range" id="scene-sensitivity" min="0.1" max="1" step="0.1" value="0.8">
+                    <span id="sensitivity-value">0.8</span>
+                </div>
+                <div class="preview-area">
+                    <div id="image-preview"></div>
+                    <div id="audio-preview"></div>
+                </div>
+                <button id="register-btn" class="primary-btn" disabled>📝 シーンを登録</button>
+            </div>
+        </div>
+
+        <!-- 管理タブ -->
+        <div id="manage-tab" class="tab-content">
+            <div class="section">
+                <h3>📋 登録済みシーン管理</h3>
+                <div class="scene-filters">
+                    <input type="text" id="search-scenes" placeholder="シーン名で検索...">
+                    <select id="sort-scenes">
+                        <option value="name">名前順</option>
+                        <option value="date">登録日順</option>
+                        <option value="usage">使用回数順</option>
+                    </select>
+                </div>
+                <div id="registered-scenes" class="scenes-list">
+                    <!-- 動的に生成 -->
+                </div>
+                <div class="bulk-actions">
+                    <button id="select-all-btn">全選択</button>
+                    <button id="delete-selected-btn" class="danger-btn">選択削除</button>
+                    <button id="export-scenes-btn">エクスポート</button>
+                    <input type="file" id="import-scenes" accept=".json" style="display: none;">
+                    <button id="import-scenes-btn">インポート</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 制御タブ -->
+        <div id="control-tab" class="tab-content">
+            <div class="section">
+                <h3>🎮 監視・再生制御</h3>
+                <div class="control-buttons">
+                    <button id="start-monitoring-btn" class="primary-btn">🔍 監視開始</button>
+                    <button id="stop-monitoring-btn" class="secondary-btn" disabled>⏹️ 監視停止</button>
+                    <button id="manual-stop-btn" class="danger-btn">🔇 音楽停止</button>
+                </div>
+                
+                <div class="audio-controls">
+                    <h4>🔊 音声制御</h4>
+                    <div class="control-group">
+                        <label>音量: <span id="volume-display">50%</span></label>
+                        <input type="range" id="volume-slider" min="0" max="100" value="50">
+                    </div>
+                    <div class="control-group">
+                        <label>再生速度: <span id="speed-display">1.0x</span></label>
+                        <input type="range" id="speed-slider" min="0.5" max="2" step="0.1" value="1">
+                    </div>
+                    <div class="control-group">
+                        <label>フェードイン時間: <span id="fadein-display">1秒</span></label>
+                        <input type="range" id="fadein-slider" min="0" max="5" step="0.5" value="1">
+                    </div>
+                    <div class="control-group">
+                        <label>フェードアウト時間: <span id="fadeout-display">1秒</span></label>
+                        <input type="range" id="fadeout-slider" min="0" max="5" step="0.5" value="1">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 設定タブ -->
+        <div id="settings-tab" class="tab-content">
+            <div class="section">
+                <h3>⚙️ 詳細設定</h3>
+                <div class="settings-group">
+                    <h4>認識設定</h4>
+                    <div class="form-group">
+                        <label>全体認識感度: <span id="global-sensitivity-display">0.8</span></label>
+                        <input type="range" id="global-sensitivity" min="0.1" max="1" step="0.05" value="0.8">
+                    </div>
+                    <div class="form-group">
+                        <label>チェック間隔: <span id="interval-display">2秒</span></label>
+                        <input type="range" id="check-interval" min="0.5" max="10" step="0.5" value="2">
+                    </div>
+                    <div class="form-group">
+                        <label>認識方式:</label>
+                        <select id="recognition-method">
+                            <option value="histogram">ヒストグラム比較</option>
+                            <option value="feature">特徴点マッチング</option>
+                            <option value="template">テンプレートマッチング</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="settings-group">
+                    <h4>パフォーマンス設定</h4>
+                    <div class="form-group">
+                        <label>キャプチャ解像度:</label>
+                        <select id="capture-resolution">
+                            <option value="320x240">低 (320x240)</option>
+                            <option value="640x480" selected>中 (640x480)</option>
+                            <option value="1280x720">高 (1280x720)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="gpu-acceleration" checked>
+                            GPU加速を使用
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="background-processing">
+                            バックグラウンド処理を許可
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="settings-group">
+                    <h4>動作設定</h4>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="auto-stop" checked>
+                            シーン変更時に自動停止
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="prevent-duplicate">
+                            同じBGMの重複再生を防ぐ
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="startup-monitoring">
+                            起動時に自動で監視開始
+                        </label>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button id="reset-settings-btn" class="danger-btn">設定リセット</button>
+                    <button id="save-settings-btn" class="primary-btn">設定保存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ログ表示エリア -->
+        <div class="log-section">
+            <h4>📜 ログ <button id="clear-log-btn" class="small-btn">クリア</button></h4>
+            <div id="log-container"></div>
+        </div>
+    </div>
+
+    <script src="imageProcessing.js"></script>
+    <script src="audioManager.js"></script>
+    <script src="sceneManager.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
